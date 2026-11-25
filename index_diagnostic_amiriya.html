@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Диагностика архива Амирии</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 28px auto; padding: 0 16px; color: #222; }
+    h1 { font-size: 22px; }
+    .status { padding: 12px; border-radius: 8px; background: #f1f3f5; margin: 12px 0; overflow-wrap: anywhere; }
+    button { padding: 12px 16px; font-size: 16px; border: 0; border-radius: 8px; background: #2675d8; color: white; }
+    button:disabled { opacity: .5; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f6f6f6; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Диагностика доступа к архиву вики «Амирия»</h1>
+  <p>Эта страница проверяет соединение с VK Bridge. Токен никуда автоматически не отправляется.</p>
+  <div id="status" class="status">Шаг 1/3: загружаем библиотеку VK Bridge…</div>
+  <button id="auth" disabled>Запросить доступ VK</button>
+  <pre id="details">Ожидание…</pre>
+
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    const detailsEl = document.getElementById('details');
+    const authButton = document.getElementById('auth');
+
+    function showStatus(message) { statusEl.textContent = message; }
+    function showDetails(value) {
+      detailsEl.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    }
+
+    window.addEventListener('error', (event) => {
+      showStatus('Ошибка JavaScript');
+      showDetails(event.message || 'Неизвестная ошибка JavaScript');
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      showStatus('Ошибка выполнения запроса');
+      showDetails(String(event.reason && (event.reason.message || event.reason)));
+    });
+
+    if (!window.vkBridge || typeof window.vkBridge.send !== 'function') {
+      showStatus('ОШИБКА: VK Bridge не загрузился');
+      showDetails('Библиотека не найдена. Проверьте доступность CDN и загрузку страницы внутри ВКонтакте.');
+    } else {
+      showStatus('Шаг 2/3: VK Bridge загружен. Отправляем VKWebAppInit…');
+      window.vkBridge.send('VKWebAppInit')
+        .then((result) => {
+          showStatus('УСПЕХ: VK Bridge инициализирован. Можно запросить разрешение pages.');
+          showDetails(result || 'VKWebAppInit выполнен без дополнительных данных.');
+          authButton.disabled = false;
+        })
+        .catch((error) => {
+          showStatus('ОШИБКА: VKWebAppInit не выполнен');
+          showDetails(error && (error.message || error.error_data || error));
+        });
+    }
+
+    authButton.addEventListener('click', async () => {
+      authButton.disabled = true;
+      showStatus('Шаг 3/3: запрашиваем разрешение pages…');
+      try {
+        const result = await window.vkBridge.send('VKWebAppGetAuthToken', {
+          app_id: 54921250,
+          scope: 'pages'
+        });
+        showStatus('ДОСТУП ПОЛУЧЕН. Токен показан ниже, не отправляйте его никому.');
+        showDetails(result);
+      } catch (error) {
+        showStatus('ОШИБКА ПРИ ЗАПРОСЕ ДОСТУПА');
+        showDetails(error && (error.message || error.error_data || error));
+        authButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
