@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Доступ к вики Амирии</title>
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+<style>
+body{font-family:Arial,sans-serif;max-width:680px;margin:40px auto;padding:0 18px;line-height:1.5;color:#202124}
+button{padding:12px 18px;border:0;border-radius:8px;background:#287be0;color:white;font-size:16px;cursor:pointer}
+textarea{width:100%;min-height:120px;margin-top:12px;box-sizing:border-box}
+#status{white-space:pre-wrap;background:#f2f4f7;padding:12px;border-radius:8px;margin:16px 0}
+.small{color:#555;font-size:14px}
+</style>
+</head>
+<body>
+<h2>Получение доступа для архива вики «Амирия»</h2>
+<p>Эта страница запрашивает у ВКонтакте разрешение <b>pages</b>, необходимое для чтения вики-страниц.</p>
+<p class="small">Токен показывается только в этом окне. Не отправляйте его другим людям и не публикуйте.</p>
+<button id="auth">Запросить доступ VK</button>
+<div id="status">Откройте эту страницу внутри ВКонтакте через ваше мини-приложение.</div>
+<div id="result" hidden>
+<label for="token"><b>Ваш токен (не публикуйте его):</b></label>
+<textarea id="token" readonly></textarea><br><br>
+<button id="copy">Скопировать токен</button>
+</div>
+<script>
+const APP_ID = 54921250;
+const statusBox = document.getElementById('status');
+const tokenBox = document.getElementById('token');
+const resultBox = document.getElementById('result');
+document.getElementById('auth').addEventListener('click', async () => {
+  try {
+    statusBox.textContent = 'Подключаем VK Bridge...';
+    await vkBridge.send('VKWebAppInit');
+    statusBox.textContent = 'Запрашиваем разрешение pages...';
+    const answer = await vkBridge.send('VKWebAppGetAuthToken', {
+      app_id: APP_ID,
+      scope: 'pages'
+    });
+    if (!answer || !answer.access_token) throw new Error('VK не вернул токен.');
+    tokenBox.value = answer.access_token;
+    resultBox.hidden = false;
+    statusBox.textContent = 'Готово. Полученные разрешения: ' + (answer.scope || 'VK не сообщил список');
+  } catch (e) {
+    statusBox.textContent = 'Не удалось получить доступ: ' + (e && e.message ? e.message : String(e)) +
+      '\nПроверьте, что страница открыта внутри VK Mini App, а URL страницы совпадает с адресом в настройках приложения.';
+  }
+});
+document.getElementById('copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(tokenBox.value);
+    statusBox.textContent = 'Токен скопирован в буфер обмена. Вставьте его только в программу выгрузки на своём компьютере.';
+  } catch(e) {
+    tokenBox.focus(); tokenBox.select();
+    statusBox.textContent = 'Автокопирование не сработало. Выделите токен в поле и скопируйте вручную.';
+  }
+});
+</script>
+</body>
+</html>
